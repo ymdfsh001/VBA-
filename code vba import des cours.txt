@@ -1,0 +1,61 @@
+
+Sub import_cours()
+    Dim Http As New WinHttpRequest
+    Dim scotes As String
+    Dim lignes
+    Dim valeurs
+    Dim i, j As Long
+    Dim sligne As String
+    Dim svaleur As Variant
+    Dim scode As String
+    
+    scode = Range("codesel")
+    Application.ScreenUpdating = False 'la mise à jour automatique de l'écran n'est pas activée
+    Application.Calculation = xlCalculationManual 'le calcul est fait seulement à la demande de l'utilisateur
+    
+    Url = "https://query1.finance.yahoo.com/v7/finance/download/" & scode & "?period1=" & Range("DDC") _
+        & "&period2=" & Range("DDF") & "&interval=1d&events=history&includeAdjustedClose=true" 'URL modifié à partir du ticker, de la date de début et de fin calulées en nombre
+    
+    If Range("A2") <> Empty Then
+        Range(Range("Debut").Offset(1, 0), Range("Debut").End(xlToRight).End(xlDown)).Delete xlUp 'Efface les cellules pour les valeurs à partir de la cellule A2 et la dernière valeur de la colonne volume
+    End If
+    
+    Http.Open "GET", Url, False
+    Http.Send ' envoi de la requête web
+    scotes = Http.ResponseText 'renvoie les données CSV
+    lignes = VBA.Split(scotes, Chr(10)) 'sépare les données CSV par une virgule
+ 
+    ' ajout des en-têtes
+    Range("Debut").Offset(0, 0) = "Date"
+    Range("Debut").Offset(0, 1) = "Open"
+    Range("Debut").Offset(0, 2) = "High"
+    Range("Debut").Offset(0, 3) = "Low"
+    Range("Debut").Offset(0, 4) = "Close"
+    Range("Debut").Offset(0, 5) = "Volume"
+    For i = 1 To UBound(lignes) 'UBond renvoie le plus grand indice disponible dans une matrice, ici déterminé par la variable ligne.
+        sligne = lignes(i) 'on différencie la ligne du CSV (sligne) de la ligne tableau excel (ligne(i))
+        valeurs = VBA.Split(sligne, ",") 'séparation des valeurs dans le CSV, chaque valeur est bornée par des virgules
+        For j = 0 To UBound(valeurs)
+            Select Case j
+                Case 0
+                    svaleur = VBA.DateSerial(VBA.CLng(VBA.Left(valeurs(0), 4)), VBA.CLng(VBA.Mid(valeurs(0), 6, 2)), VBA.CLng(VBA.Right(valeurs(0), 2))) 'sur le fichier CSV le format date est inversé : 2023-01-30
+                Case Else
+                    svaleur = CDbl(VBA.Replace(valeurs(j), ".", ",")) 'convertit la valeur dans le CSV en variable Double et sépare les décimales par des virgules à la place des points, cela permet de faire des calculs manuels par la suite dans excel
+            End Select
+                
+            If j < 5 Then
+                Range("Debut").Offset(i, j) = svaleur 'place les valeurs du CSV dans les cellules correspondantes
+            End If
+            If j = 6 Then
+                Range("Debut").Offset(i, j - 1) = svaleur 'permet à la colonne volume de prendre la place de clôture ajustée qui est présent dans le fichier CSV
+            End If
+        Next
+    Next
+    Application.StatusBar = False
+    Application.Calculation = xlCalculationAutomatic 'excel contrôle le recalcul
+    Application.Calculate
+End Sub
+    
+        
+
+        
